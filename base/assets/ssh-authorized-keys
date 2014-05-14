@@ -1,0 +1,23 @@
+#!/bin/bash
+
+AUTH_KEYS="$1"
+SSH_FOLDER="$HOME/.ssh"
+AUTH_FILE="$SSH_FOLDER/authorized_keys"
+
+if [ ! -x $AUTH_KEYS ]; then
+  if [ ! -d $SSH_FOLDER ]; then
+    echo "$SSH_FOLDER does not exist, creating..."
+    mkdir -p $SSH_FOLDER
+  fi
+
+  AUTH_KEYS=$(/bin/echo $AUTH_KEYS | /usr/bin/base64 --decode)
+  echo "Setting custom public keys on $AUTH_FILE:"
+  echo "$AUTH_KEYS"
+  echo "$AUTH_KEYS" > $AUTH_FILE
+  chmod 600 $AUTH_FILE
+else
+  echo "Please provide a ssh public keys as an argument"
+  exit 1
+fi
+
+exit 0

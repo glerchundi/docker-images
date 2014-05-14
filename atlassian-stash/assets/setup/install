@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+
+useradd --system --home $STASH_HOME --user-group stash

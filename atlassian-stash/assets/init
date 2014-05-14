@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+# generate a password for root.
+ROOT_PASSWORD=$(pwgen -c -n -1 12)
+echo "root:$ROOT_PASSWORD" | chpasswd
+echo User: root Password: $ROOT_PASSWORD
+
+if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
+  echo "Starting sshd..."
+  /usr/bin/supervisord
+  supervisorctl start sshd
+  ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+fi
+
+appStart () {
+    # fix permissions
+    chown stash:stash $STASH_HOME
+    chown -R stash:stash /opt/atlassian-stash*
+    
+    # Start Atlassian in the foreground
+    sysctl -w kernel.shmmax=714219520
+    sudo -u stash STASH_HOME=$STASH_HOME /opt/atlassian-stash/bin/start-stash.sh -fg
+}
+
+appHelp () {
+    echo "Available options:"
+    echo " app:start                - Start the mysql server and watch the log (default)"
+    echo " app:help                 - Displays the help"
+    echo " [command]                - Execute the specified linux command eg. bash."
+}
+
+case "$1" in
+    app:start)
+        appStart
+        ;;
+    app:help)
+        appHelp
+        ;;
+    *)
+        if [ -x $1 ]; then
+            $1
+        else
+            prog=$(which $1)
+            if [ -n "${prog}" ] ; then
+                shift 1
+                $prog $@
+            else
+                appHelp
+            fi
+        fi
+        ;;
+esac
+
+exit 0

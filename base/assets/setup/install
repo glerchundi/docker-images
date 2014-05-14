@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# supervise sshd server start
+cat > /etc/supervisor/conf.d/sshd.conf << EOF
+[program:sshd]
+command=/usr/sbin/sshd -D
+stdout_logfile=/var/log/sshd.log
+stderr_logfile=/var/log/sshd.log
+autorestart=false
+EOF
+
+mkdir -p /var/run/sshd
+chmod 0755 /var/run/sshd
