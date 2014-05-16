@@ -19,7 +19,6 @@ appStart () {
     chown -R stash:stash /opt/atlassian-stash*
     
     # Start Atlassian in the foreground
-    sysctl -w kernel.shmmax=714219520
     sudo -u stash STASH_HOME=$STASH_HOME /opt/atlassian-stash/bin/start-stash.sh -fg
 }
 
