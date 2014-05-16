@@ -41,7 +41,7 @@ RUN echo 'Acquire::http {No-Cache=True;};' | tee /etc/apt/apt.conf.d/no-http-cac
 RUN apt-get update -y && apt-get dist-upgrade -y
 
 # Make sure the package repository is up to date
-RUN apt-get -y install sudo wget vim pwgen vim curl net-tools unzip nmap \
+RUN apt-get -y install sudo wget vim pwgen vim curl net-tools unzip nmap iputils-* \
                        language-pack-en python-software-properties supervisor \
                        openssh-server
 
