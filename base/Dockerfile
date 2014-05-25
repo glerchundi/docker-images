@@ -45,13 +45,9 @@ RUN apt-get -y install sudo wget vim pwgen vim curl net-tools unzip nmap iputils
                        language-pack-en python-software-properties supervisor \
                        openssh-server
 
-# versions and urls
+# etcd
 ENV ETCD_VERSION 0.3.0
 ENV ETCD_URL https://github.com/coreos/etcd/releases/download/v$ETCD_VERSION/etcd-v$ETCD_VERSION-linux-amd64.tar.gz
-ENV CONFD_VERSION 0.3.0
-ENV CONFD_URL https://github.com/kelseyhightower/confd/releases/download/v$CONFD_VERSION/confd_$CONFD_VERSION_linux_amd64.tar.gz
-
-# etcd
 RUN wget -O /opt/etcd-$ETCD_VERSION.tar.gz $ETCD_URL 
 RUN tar xvzf /opt/etcd-$ETCD_VERSION.tar.gz -C /opt
 RUN rm /opt/etcd-$ETCD_VERSION.tar.gz
@@ -59,12 +55,9 @@ RUN mv /opt/etcd-* /opt/etcd-$ETCD_VERSION && ln -s /opt/etcd-$ETCD_VERSION /opt
 RUN ln -s /opt/etcd/etcdctl /usr/local/bin/etcdctl
 
 # confd
-RUN wget -O /opt/confd-$CONFD_VERSION.tar.gz $CONFD_URL 
-RUN mkdir -p /opt/confd-$CONFD_VERSION && tar xvzf /opt/confd-$CONFD_VERSION.tar.gz -C /opt/confd-$CONFD_VERSION
-RUN rm /opt/confd-$CONFD_VERSION.tar.gz
-RUN ln -s /opt/confd-$CONFD_VERSION /opt/confd
-RUN ln -s /opt/confd/confd /usr/local/bin/confd
-RUN mkdir -p /etc/confd/conf.d  /etc/confd/templates
+ADD assets/confd /usr/local/bin/confd
+RUN chmod 755 /usr/local/bin/confd
+RUN mkdir -p /etc/confd/conf.d /etc/confd/templates
 
 # Fix locale
 RUN locale-gen en_US.UTF-8
