@@ -1,10 +1,10 @@
-# Image: glerchundi/atlassian-stash:2.12.2
+# Image: glerchundi/atlassian-stash:3.0
 FROM glerchundi/base-with-oracle-java7:12.04
 MAINTAINER Gorka Lerchundi Osa <glertxundi@gmail.com>
 
 # Environment
 ENV STASH_HOME /home/stash
-ENV STASH_VERSION 2.12.2
+ENV STASH_VERSION 3.0.1
 ENV STASH_URL http://downloads.atlassian.com/software/stash/downloads/atlassian-stash-$STASH_VERSION.tar.gz
 
 # Dependencies

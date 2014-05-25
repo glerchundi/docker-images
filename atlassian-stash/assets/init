@@ -1,5 +1,10 @@
 #!/bin/bash
-set -e
+
+# Fail hard and fast
+set -eo pipefail
+
+# etcd 
+ETCD=${ETCD:-172.17.42.1:4001}
 
 # generate a password for root.
 ROOT_PASSWORD=$(pwgen -c -n -1 12)
@@ -13,11 +18,37 @@ if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
   ssh-authorized-keys $SSH_AUTHORIZED_KEYS
 fi
 
+# generate toml file
+cat >> /etc/confd/conf.d/stash.toml <<EOF
+[template]
+keys = [
+  "/ci-server/databases/stash/driver",
+  "/ci-server/databases/stash/url",
+  "/ci-server/databases/stash/username",
+  "/ci-server/databases/stash/password"
+]
+owner       = "stash"
+group       = "stash"
+mode        = "0644"
+src         = "stash-config.properties.tmpl"
+dest        = "$STASH_HOME/stash-config.properties"
+EOF
+
 appStart () {
     # fix permissions
     chown stash:stash $STASH_HOME
     chown -R stash:stash /opt/atlassian-stash*
-    
+
+    # copy template file
+    chown stash:stash /etc/confd/conf.d/stash.toml
+    cp -p $STASH_HOME/stash-config.properties.tmpl /etc/confd/templates/stash-config.properties.tmpl
+
+    # Loop until confd has updated the stash config
+    until confd -onetime -node $ETCD -config-file /etc/confd/conf.d/stash.toml; do
+      echo "Waiting for confd to refresh stash-config.properties"
+      sleep 5
+    done
+
     # Start Atlassian in the foreground
     sudo -u stash STASH_HOME=$STASH_HOME /opt/atlassian-stash/bin/start-stash.sh -fg
 }
