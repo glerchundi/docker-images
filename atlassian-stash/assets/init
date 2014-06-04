@@ -44,7 +44,7 @@ appStart () {
     cp -p $STASH_HOME/stash-config.properties.tmpl /etc/confd/templates/stash-config.properties.tmpl
 
     # Loop until confd has updated the stash config
-    until confd -onetime -node $ETCD -config-file /etc/confd/conf.d/stash.toml; do
+    until confd -onetime -backend etcd -node $ETCD -config-file /etc/confd/conf.d/stash.toml; do
       echo "Waiting for confd to refresh stash-config.properties"
       sleep 5
     done
