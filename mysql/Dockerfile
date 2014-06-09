@@ -8,9 +8,10 @@ ADD assets/ /app/
 RUN chmod 755 /app/init /app/setup/install
 RUN /app/setup/install
 
+EXPOSE 22
 EXPOSE 3306
 
-VOLUME ["/var/lib/mysql"]
+VOLUME ["/etc/mysql", /var/lib/mysql", "/var/log/mysql"]
 
 ENTRYPOINT ["/app/init"]
 CMD ["app:start"]

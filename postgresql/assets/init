@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 # generate a password for root.
@@ -8,10 +7,10 @@ echo "root:$ROOT_PASSWORD" | chpasswd
 echo User: root Password: $ROOT_PASSWORD
 
 if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
-  echo "Starting sshd..."
-  /usr/bin/supervisord
-  supervisorctl start sshd
-  ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+    echo "Starting sshd..."
+    /usr/bin/supervisord
+    supervisorctl start sshd
+    ssh-authorized-keys $SSH_AUTHORIZED_KEYS
 fi
 
 appStart () {
@@ -25,13 +24,18 @@ appStart () {
         PG_PASSWORD=$(pwgen -c -n -1 14)
         echo "${PG_PASSWORD}" > /var/lib/postgresql/pwfile
         sudo -u postgres -H /usr/lib/postgresql/$POSTGRESQL_VERSION/bin/initdb \
-            --pgdata=/var/lib/postgresql/$POSTGRESQL_VERSION/main --pwfile=/var/lib/postgresql/pwfile \
-            --username=postgres --encoding=unicode --auth=trust >/dev/null
+            --pgdata=/var/lib/postgresql/$POSTGRESQL_VERSION/main \
+            --pwfile=/var/lib/postgresql/pwfile \
+            --username=postgres \
+            --encoding=unicode \
+            --auth=trust > /dev/null
     fi
 
+    # start postgresql server
     echo "Starting PostgreSQL server..."
     /etc/init.d/postgresql start
 
+    # warn cause password is present yet.
     if [ -f /var/lib/postgresql/pwfile ]; then
         PG_PASSWORD=$(cat /var/lib/postgresql/pwfile)
         echo "|------------------------------------------------------------------|"
@@ -41,9 +45,10 @@ appStart () {
         echo "| make a note of password and then delete the file pwfile          |"
         echo "| from the data store.                                             |"
         echo "|------------------------------------------------------------------|"
-     fi
+    fi
 
-     tail -F /var/log/postgresql/postgresql-$POSTGRESQL_VERSION-main.log
+    # tail and wait to new error log messages
+    tail -F /var/log/postgresql/postgresql-$POSTGRESQL_VERSION-main.log
 }
 
 appHelp () {

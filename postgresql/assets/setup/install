@@ -1,18 +1,12 @@
 #!/bin/bash
 set -e
 
-# listen on all interfaces
-cat >> /etc/postgresql/$POSTGRESQL_VERSION/main/postgresql.conf <<EOF
-listen_addresses = '*'
-EOF
-
-# allow remote connections to postgresql database
-cat >> /etc/postgresql/$POSTGRESQL_VERSION/main/pg_hba.conf <<EOF
-host    all             all             0.0.0.0/0               md5
-EOF
-
 # remove the default database, will create from init
 rm -rf /var/lib/postgresql/$POSTGRESQL_VERSION/main
+
+# copy custom configs
+rm -f /etc/postgresql/$POSTGRESQL_VERSION/main/postgresql.conf && cp /app/setup/postgresql.conf /etc/postgresql/$POSTGRESQL_VERSION/main/postgresql.conf
+rm -f /etc/postgresql/$POSTGRESQL_VERSION/main/pg_hba.conf && cp /app/setup/pg_hba.conf /etc/postgresql/$POSTGRESQL_VERSION/main/pg_hba.conf
 
 echo ""
 echo "*************************************************************************"
