@@ -3,8 +3,9 @@
 # Fail hard and fast
 set -eo pipefail
 
-# etcd 
+# etcd and key prefixes
 ETCD=${ETCD:-172.17.42.1:4001}
+ETCD_KEYS_PREFIX=${ETCD_KEYS_PREFIX:-/ci/databases/stash}
 
 # generate a password for root.
 ROOT_PASSWORD=$(pwgen -c -n -1 12)
@@ -22,10 +23,10 @@ fi
 cat >> /etc/confd/conf.d/stash.toml <<EOF
 [template]
 keys = [
-  "/ci-server/databases/stash/driver",
-  "/ci-server/databases/stash/url",
-  "/ci-server/databases/stash/username",
-  "/ci-server/databases/stash/password"
+  "$ETCD_KEYS_PREFIX/driver",
+  "$ETCD_KEYS_PREFIX/url",
+  "$ETCD_KEYS_PREFIX/username",
+  "$ETCD_KEYS_PREFIX/password"
 ]
 owner       = "stash"
 group       = "stash"
