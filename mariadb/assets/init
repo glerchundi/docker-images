@@ -1,11 +1,7 @@
 #!/bin/bash
 set -e
 
-# generate a password for root.
-ROOT_PASSWORD=$(pwgen -c -n -1 12)
-echo "root:$ROOT_PASSWORD" | chpasswd
-echo User: root Password: $ROOT_PASSWORD
-
+# start sshd server and add authorized keys
 if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
     echo "Starting sshd..."
     /usr/bin/supervisord 2> /dev/null

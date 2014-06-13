@@ -1,0 +1,3 @@
+# install wrapdocker file
+cp /app/setup/wrapdocker /usr/local/bin/wrapdocker
+chmod +x /usr/local/bin/wrapdocker

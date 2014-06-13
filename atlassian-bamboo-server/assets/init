@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+# start sshd server and add authorized keys
+if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
+    echo "Starting sshd..."
+    /usr/bin/supervisord 2> /dev/null
+    supervisorctl start sshd
+    ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+fi
+
+# Uncomment to increase Tomcat's maximum heap allocation
+# export JAVA_OPTS=-Xmx512M $JAVA_OPTS
+
+appStart () {
+    # wrap bamboo with docker cause we want to 
+    /usr/local/bin/wrapdocker && /opt/atlassian-bamboo/bin/catalina.sh run
+}
+
+appHelp () {
+    echo "Available options:"
+    echo " app:start                - Start the mysql server and watch the log (default)"
+    echo " app:help                 - Displays the help"
+    echo " [command]                - Execute the specified linux command eg. bash."
+}
+
+case "$1" in
+    app:start)
+        appStart
+        ;;
+    app:help)
+        appHelp
+        ;;
+    *)
+        if [ -x $1 ]; then
+            $1
+        else
+            prog=$(which $1)
+            if [ -n "${prog}" ] ; then
+                shift 1
+                $prog $@
+            else
+                appHelp
+            fi
+        fi
+        ;;
+esac
+
+exit 0
