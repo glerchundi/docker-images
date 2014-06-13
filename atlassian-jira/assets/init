@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Fail hard and fast
+set -eo pipefail
+
+# etcd and key prefixes
+ETCD=${ETCD:-172.17.42.1:4001}
+ETCD_KEYS_PREFIX=${ETCD_KEYS_PREFIX:-/ci/databases/jira}
+
+# start sshd server and add authorized keys
+if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
+  echo "Starting sshd..."
+  /usr/bin/supervisord
+  supervisorctl start sshd
+  ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+fi
+
+# generate toml file
+cat >> /etc/confd/conf.d/jira.toml <<EOF
+[template]
+keys = [
+  "$ETCD_KEYS_PREFIX/driver",
+  "$ETCD_KEYS_PREFIX/url",
+  "$ETCD_KEYS_PREFIX/username",
+  "$ETCD_KEYS_PREFIX/password"
+]
+owner       = "jira"
+group       = "jira"
+mode        = "0644"
+src         = "dbconfig.xml.tmpl"
+dest        = "$JIRA_HOME/dbconfig.xml"
+EOF
+
+appStart () {
+    # fix permissions
+    chown jira:jira $JIRA_HOME
+    chown -R jira:jira /opt/atlassian-jira*
+
+    # copy template file
+    chown jira:jira /etc/confd/conf.d/jira.toml
+    cp -p $JIRA_HOME/dbconfig.xml.tmpl /etc/confd/templates/dbconfig.xml.tmpl
+
+    # Loop until confd has updated the jira config
+    until confd -onetime -backend etcd -node $ETCD -config-file /etc/confd/conf.d/jira.toml; do
+      echo "Waiting for confd to refresh dbconfig.xml"
+      sleep 5
+    done
+
+    # Start Atlassian in the foreground
+    sudo -u jira JIRA_HOME=$JIRA_HOME /opt/atlassian-jira/bin/start-jira.sh -fg
+}
+
+appHelp () {
+    echo "Available options:"
+    echo " app:start                - Start the mysql server and watch the log (default)"
+    echo " app:help                 - Displays the help"
+    echo " [command]                - Execute the specified linux command eg. bash."
+}
+
+case "$1" in
+    app:start)
+        appStart
+        ;;
+    app:help)
+        appHelp
+        ;;
+    *)
+        if [ -x $1 ]; then
+            $1
+        else
+            prog=$(which $1)
+            if [ -n "${prog}" ] ; then
+                shift 1
+                $prog $@
+            else
+                appHelp
+            fi
+        fi
+        ;;
+esac
+
+exit 0

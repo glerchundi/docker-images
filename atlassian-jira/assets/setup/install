@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+# create user for JIRA
+useradd --system --home $JIRA_HOME --user-group jira
