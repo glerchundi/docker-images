@@ -1,0 +1,103 @@
+#!/bin/bash
+set -eo pipefail
+
+# kvdb and key prefixes
+BACKEND=${BACKEND:-etcd} 
+BACKEND_ADDR=${BACKEND_ADDR:-172.17.42.1:4001}
+BACKEND_KEYS_PREFIX=${BACKEND_KEYS_PREFIX:-/databases}
+
+# App folder
+APP_FOLDER=/opt/app
+
+# start sshd server and add authorized keys
+if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
+    echo "Starting sshd..."
+    /usr/bin/supervisord 2> /dev/null
+    supervisorctl start sshd
+    ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+fi
+
+# remove trailing and leading '/' characters
+PREFIX=$(echo $BACKEND_KEYS_PREFIX | sed 's/^\///' | sed 's/\/$//')
+
+process_toml () {
+    src=$1
+    dst=/etc/confd/conf.d/$(basename $src)    
+    cat $src | sed -e 's/$PREFIX/'$(echo $PREFIX | sed 's/\//\\\//')'/g' > $dst
+    chown mono:mono $dst
+}
+
+process_tmpl () {
+    src=$1
+    dst=/etc/confd/templates/$(basename $src)
+    cat $src | sed -e 's/$PREFIX/'$(echo $PREFIX | sed 's/\//_/')'/g' > $dst
+    chown mono:mono $dst
+}
+
+appStart () {
+    # require app url as first parameter
+    url=$1;
+    if [[ -z $url ]]; then
+        echo "app:start should have a url pointing to the app"
+        exit 1
+    fi
+
+    # download app & unzip
+    echo "[mono-app] downloading $url..."
+    wget -O $APP_FOLDER.zip $url
+    unzip $APP_FOLDER.zip -d $APP_FOLDER
+    chown -R mono:mono $APP_FOLDER
+
+    # keep a template, just in case
+    mv $APP_FOLDER/Web.config $APP_FOLDER/Web.config.tmpl
+
+    # replace prefixes and place conf file in its final destination
+    process_toml /app/setup/Web.config.toml
+
+    # replace prefixes and place template file in its final destination
+    process_tmpl $APP_FOLDER/Web.config.tmpl
+
+    # loop until confd has updated the webapp config
+    until confd -onetime -backend $BACKEND -node $BACKEND_ADDR --config-file /etc/confd/conf.d/Web.config.toml; do
+        echo "[mono-app] waiting for confd to refresh Web.config"
+        sleep 5
+    done
+
+    # start the mono app, in background
+    sudo -u mono /bin/bash -c "nohup /opt/mono/bin/xsp4 --nonstop --root $APP_FOLDER >> $APP_FOLDER/xsp.log 2>&1 &"
+
+    # Tail all nginx log files
+    tail -f $APP_FOLDER/xsp.log
+}
+
+appHelp () {
+    echo "Available options:"
+    echo " app:start url      - Start the mono-xsp4 server with a custom app"
+    echo " app:help           - Displays the help"
+    echo " [command]          - Execute the specified linux command eg. bash."
+}
+
+case "$1" in
+    app:start)
+        shift 1
+        appStart $@
+        ;;
+    app:help)
+        appHelp
+        ;;
+    *)
+        if [ -x $1 ]; then
+            $1
+        else
+            prog=$(which $1)
+            if [ -n "${prog}" ] ; then
+                shift 1
+                $prog $@
+            else
+                appHelp
+            fi
+        fi
+        ;;
+esac
+
+exit 0

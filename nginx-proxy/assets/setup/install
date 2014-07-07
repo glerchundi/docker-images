@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+# remove existing conf.d's
+rm -frR /etc/nginx/conf.d
+
+# create and empty certificates directory
+mkdir -p /etc/nginx/certs
+
+# message to notifiy which order should be followed in etc/consul
+cat <<EOF
+/your-etcd-prefix
+  /params
+    /worker_processes = 2
+    /worker_connections = 1024
+  /servers
+    /example1.com
+      /params
+        /schemes = http, https or both
+      /upstreams
+        /<randomkey> = 10.10.10.10:8086
+        /<randomkey> = 10.10.10.11:8086
+    /example2.com
+      /params
+        /schemes = http, https or both
+      /upstreams
+        /<randomkey> = 10.10.10.10:8085
+        /<randomkey> = 10.10.10.11:8085
+EOF

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # start sshd server and add authorized keys
 if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
@@ -68,7 +68,7 @@ appSecureInstallation () {
 
 appHelp () {
     echo "Available options:"
-    echo " app:start                - Start the mysql server and watch the log (default)"
+    echo " app:start                - Start the mariadb server and watch the log (default)"
     echo " app:secure_installation  - Harden server security"
     echo " app:help                 - Displays the help"
     echo " [command]                - Execute the specified linux command eg. bash."

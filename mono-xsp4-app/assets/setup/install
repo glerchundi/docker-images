@@ -1,0 +1,15 @@
+# add mono binaries to the path
+cat >> /root/.bashrc << EOF
+export PATH=$PATH:/opt/mono/bin
+EOF
+
+# add mono libraries to be resolved dynamically
+cat > /etc/ld.so.conf.d/mono-opt.conf << EOF
+/opt/mono/lib
+EOF
+
+# update library cache
+/sbin/ldconfig
+
+# create mono user to execute the webapp
+useradd -s /bin/false mono

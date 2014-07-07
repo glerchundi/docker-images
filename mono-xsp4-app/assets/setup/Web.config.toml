@@ -1,0 +1,9 @@
+[template]
+owner      = "mono"
+group      = "mono"
+mode       = "0644"
+src        = "Web.config.tmpl"
+dest       = "/opt/app/Web.config"
+keys       = [
+  "$PREFIX"
+]

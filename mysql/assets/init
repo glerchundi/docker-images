@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # start sshd server and add authorized keys
 if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then

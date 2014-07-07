@@ -1,0 +1,91 @@
+#!/bin/bash
+set -eo pipefail
+
+# kvdb and key prefixes
+BACKEND=${BACKEND:-etcd} 
+BACKEND_ADDR=${BACKEND_ADDR:-172.17.42.1:4001}
+BACKEND_KEYS_PREFIX=${BACKEND_KEYS_PREFIX:-/nginx}
+
+# start sshd server and add authorized keys
+if [ ! -z "$SSH_AUTHORIZED_KEYS" ]; then
+  echo "Starting sshd..."
+  /usr/bin/supervisord
+  supervisorctl start sshd
+  ssh-authorized-keys $SSH_AUTHORIZED_KEYS
+fi
+
+# remove trailing and leading '/' characters
+PREFIX=$(echo $BACKEND_KEYS_PREFIX | sed 's/^\///' | sed 's/\/$//')
+
+process_toml () {
+  src=$1
+  dst=/etc/confd/conf.d/$(basename $src)
+  cat $src | sed -e 's/$PREFIX/'$(echo $PREFIX | sed 's/\//\\\//')'/g' > $dst
+  chown nginx:nginx $dst
+}
+
+process_tmpl () {
+  src=$1
+  dst=/etc/confd/templates/$(basename $src)
+  cat $src | sed -e 's/$PREFIX/'$(echo $PREFIX | sed 's/\//_/')'/g' > $dst
+  chown nginx:nginx $dst
+}
+
+appStart () {
+  # fix permissions and ownership
+  chown -R nginx:nginx /etc/nginx/certs
+
+  # replace prefixes and place conf file in its final destination
+  process_toml /app/setup/nginx.conf.toml
+
+  # replace prefixes and place template file in its final destination
+  process_tmpl /app/setup/nginx.conf.tmpl
+
+  # loop until confd has updated the nginx config
+  until confd -onetime -backend $BACKEND -node $BACKEND_ADDR --config-file /etc/confd/conf.d/nginx.conf.toml; do
+    echo "[nginx] waiting for confd to refresh nginx.conf"
+    sleep 5
+  done
+
+  # run confd in the background to watch the upstream servers
+  confd -interval 10 -backend $BACKEND -node $BACKEND_ADDR --config-file /etc/confd/conf.d/nginx.conf.toml &
+  echo "[nginx] confd is listening for changes on etcd..."
+
+  # start nginx
+  echo "[nginx] starting nginx service..."
+  service nginx start
+
+  # Tail all nginx log files
+  tail -f /var/log/nginx/*.log
+}
+
+appHelp () {
+    echo "Available options:"
+    echo " app:start          - Start the nginx server and watch the log (default)"
+    echo " app:help           - Displays the help"
+    echo " [command]          - Execute the specified linux command eg. bash."
+}
+
+case "$1" in
+    app:start)
+        appStart
+        ;;
+    app:help)
+        appHelp
+        ;;
+    *)
+        if [ -x $1 ]; then
+            $1
+        else
+            prog=$(which $1)
+            if [ -n "${prog}" ] ; then
+                shift 1
+                $prog $@
+            else
+                appHelp
+            fi
+        fi
+        ;;
+esac
+
+exit 0

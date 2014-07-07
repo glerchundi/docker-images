@@ -1,0 +1,80 @@
+user nginx;
+worker_processes {{if .$PREFIX_params_worker_processes }} {{ .$PREFIX_params_worker_processes }}; {{else}} 1; {{end}}
+
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+  worker_connections {{if .$PREFIX_params_worker_connections }} {{ .$PREFIX_params_worker_connections }}; {{else}} 1024; {{end}}
+}
+
+http {
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+  
+  log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                  '"$http_user_agent" "$http_x_forwarded_for"';
+  access_log /var/log/nginx/access.log main;
+
+  sendfile on;
+  #tcp_nopush on;
+
+  keepalive_timeout 65;
+
+  #gzip on;
+
+  {{range $index, $server := .$PREFIX_servers}}{{if $server.Nodes}}
+    {{$schemes := "http"}}
+    {{range $node := $server.Nodes}}
+      {{if eq (Base $node.Key) "params"}}{{if $node.Nodes}}{{range $param := $node.Nodes}}
+        {{if eq $param.Key "schemes"}}{{$scheme := $param.Value}}{{end}}
+      {{end}}{{end}}{{end}}
+    {{end}}
+    {{range $node := $server.Nodes}}
+      {{if eq (Base $node.Key) "upstreams"}}{{if $node.Nodes}}
+  upstream backend{{$index}} {
+    {{range $upstream := $node.Nodes}}server {{$upstream.Value}};
+    {{end}}
+  }
+      {{if (eq $schemes "http") or (eq $schemes "both")}}
+  server {
+    listen 80;
+    server_name {{Base $server.Key}};
+
+    location / {
+      access_log       off;
+      proxy_pass       http://backend{{$index}};
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+  }
+      {{end}}
+      {{if (eq $schemes "https") or (eq $schemes "both")}}
+  server {
+    server_name {{Base $server.Key}};
+    listen 443 ssl spdy;
+
+    ssl on;
+    ssl_certificate           /etc/nginx/certs/{{Base $server.Key}}.cert;
+    ssl_certificate_key       /etc/nginx/certs/{{Base $server.Key}}.key;
+    ssl_protocols             TLSv1.1 TLSv1.2;
+    ssl_ciphers               ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AES:RSA+3DES:!ADH:!AECDH:!MD5:!DSS:!RC4;
+    ssl_prefer_server_ciphers on;
+    ssl_ecdh_curve            secp521r1;
+    ssl_dhparam               /etc/ssl/private/dhparam.pem;
+
+    location / {
+      access_log       off;
+      proxy_pass       http://backend{{$index}};
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+  }
+      {{end}}
+      {{end}}{{end}}
+    {{end}}
+  {{end}}{{end}}
+}
